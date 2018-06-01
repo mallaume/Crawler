@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -10,7 +11,6 @@ namespace Crawler
 {
     class Program
     {
-        private static StringBuilder _sb;
         private static string _host;
         private static string _scheme;
         private static HashSet<Uri> _visited;
@@ -28,7 +28,6 @@ namespace Crawler
             var startString = Console.ReadLine();
             var startUri = new Uri(startString);
 
-            _sb = new StringBuilder();
             _host = startUri.Host;
             _scheme = startUri.Scheme;
             _visited = new HashSet<Uri>();
@@ -41,9 +40,56 @@ namespace Crawler
 
             AnalyseHtmlPage(startUri);
 
-            string final = _sb.ToString();
+            // Write result to text file :
+            // ===========================
+            var sb = new StringBuilder();
 
-            Console.Write(final);
+            foreach (var uri in _internalLinks)
+            {
+                sb.AppendLine($"-> INTERNAL LINK : {uri.ToString()}");
+            }
+
+            foreach (var uri in _externalLinks)
+            {
+                sb.AppendLine($"-> EXTERNAL LINK : {uri.ToString()}");
+            }
+
+            foreach (var uri in _images)
+            {
+                sb.AppendLine($"-> IMAGE : {uri.ToString()}");
+            }
+
+            foreach (var uri in _scripts)
+            {
+                sb.AppendLine($"-> SCRIPT : {uri.ToString()}");
+            }
+
+            foreach (var uri in _styleSheets)
+            {
+                sb.AppendLine($"-> STYLE SHEET : {uri.ToString()}");
+            }
+
+            foreach (var uri in _errors)
+            {
+                sb.AppendLine($"-> ERROR : {uri.ToString()}");
+            }
+
+            var filename = $"{System.IO.Path.GetTempPath()}crawlerOutput.txt";
+
+            System.IO.File.WriteAllText(filename, sb.ToString());
+
+            Console.WriteLine();
+            Console.WriteLine($"Crawling finished ! Output written to {filename}");
+            Console.WriteLine("Do you want to open the file ? (Y/N)");
+
+            var result = Console.ReadLine();
+
+            if (result == "Y")
+            {
+                Process.Start(filename);
+            }
+
+            Console.WriteLine("Press a key to exit...");
             Console.ReadKey();
         }
         private static void AnalyseHtmlPage(Uri page)
@@ -104,7 +150,6 @@ namespace Crawler
                                 if (!_internalLinks.Contains(uri))
                                 {
                                     _internalLinks.Add(uri);
-                                    _sb.AppendLine($"INTERNAL LINK : {linkUrl}");
                                     AnalyseHtmlPage(uri);
                                 }
                             }
@@ -115,7 +160,6 @@ namespace Crawler
                                 if (!_externalLinks.Contains(uri))
                                 {
                                     _externalLinks.Add(uri);
-                                    _sb.AppendLine($"EXTERNAL LINK : {linkUrl}");
                                 }
                             }
                         }
@@ -142,7 +186,6 @@ namespace Crawler
                     if (!targetCollection.Contains(uri))
                     {
                         targetCollection.Add(uri);
-                        _sb.AppendLine($"{staticAssetLabel} : {attributeStringUri}");
                     }
                 }
             }
