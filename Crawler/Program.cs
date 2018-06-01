@@ -61,6 +61,17 @@ namespace Crawler
                     try
                     {
                         content = web.DownloadString(page);
+
+                        var headers = web.ResponseHeaders;
+
+                        // Filter Content-Type = text/html only :
+                        // ======================================
+                        var contentType = headers.Get("Content-Type");
+
+                        if (contentType == null || contentType != "text/html")
+                        {
+                            return;
+                        }
                     }
                     catch(WebException ex)
                     {
