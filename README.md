@@ -12,9 +12,9 @@ page by page... The crawler does not support assets served by APIs and thus is n
 
 # Improvements
 There could be many improvements to bring to this crawler. Here are a few of them :
--Process multiple pages at a time using concurrency
--Handle static assets or html document served by an API ? Difficult without knwowing the API first...
--Improve output and draw a graph that show relationships between the pages
+  -Process multiple pages at a time using concurrency
+  -Handle static assets or html document served by an API ? Difficult without knwowing the API first...
+  -Improve output and draw a graph that show relationships between the pages
 
 # Final note
 Thanks ! That was very fun to code !
