@@ -10,6 +10,9 @@ namespace Crawler
 {
     class Program
     {
+        private static StringBuilder _sb;
+        private static HashSet<Uri> _links;
+
         static void Main(string[] args)
         {
             Console.WriteLine("Please enter an URL to scan : (please include http/https)");
@@ -17,8 +20,14 @@ namespace Crawler
             var startString = Console.ReadLine();
             var startUri = new Uri(startString);
 
+            _sb = new StringBuilder();
+            _links = new HashSet<Uri>();
+
             AnalyseHtmlPage(startUri);
 
+            string final = _sb.ToString();
+
+            Console.Write(final);
             Console.ReadKey();
         }
         private static void AnalyseHtmlPage(Uri page)
@@ -27,23 +36,48 @@ namespace Crawler
             {
                 var content = web.DownloadString(page);
 
-                var html = new HtmlDocument();
+                var document = new HtmlDocument();
 
-                html.LoadHtml(content);
-                StringBuilder sb = new StringBuilder();
+                document.LoadHtml(content);
 
-                foreach (var node in html.DocumentNode.SelectNodes("//a[@href]"))
+                // Read all links :
+                // ================
+                foreach (var node in document.DocumentNode.SelectNodes("//a[@href]"))
                 {
                     if (node.Attributes.Any(e => e.Name.ToLower() == "href"))
                     {
                         var linkUrl = node.Attributes["href"].Value;
-                        sb.AppendLine($"LINK : {linkUrl}");
+
+                        // Filter API requests :
+                        // =====================
+                        if (linkUrl.Contains("?"))
+                        {
+                            continue;
+                        }
+
+                        // Filter anchors :
+                        // ================
+                        if (linkUrl.Contains("#"))
+                        {
+                            linkUrl = linkUrl.Split('#').First();
+                        }
+
+                        // Trim / at the end of url :
+                        // ==========================
+                        linkUrl = linkUrl.TrimEnd('/');
+
+                        if (linkUrl.Length > 0)
+                        {
+                            var uri = new Uri(linkUrl);
+
+                             if (!_links.Contains(uri))
+                            {
+                                _links.Add(uri);
+                                _sb.AppendLine($"LINK : {linkUrl}");
+                            }
+                        }
                     }
                 }
-
-                string final = sb.ToString();
-
-                Console.Write(final);
             }
         }
     }
