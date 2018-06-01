@@ -12,10 +12,14 @@ namespace Crawler
     {
         private static StringBuilder _sb;
         private static string _host;
+        private static string _scheme;
         private static HashSet<Uri> _visited;
         private static HashSet<Uri> _errors;
         private static HashSet<Uri> _internalLinks;
         private static HashSet<Uri> _externalLinks;
+        private static HashSet<Uri> _images;
+        private static HashSet<Uri> _scripts;
+        private static HashSet<Uri> _styleSheets;
 
         static void Main(string[] args)
         {
@@ -26,10 +30,14 @@ namespace Crawler
 
             _sb = new StringBuilder();
             _host = startUri.Host;
+            _scheme = startUri.Scheme;
             _visited = new HashSet<Uri>();
             _errors = new HashSet<Uri>();
             _internalLinks = new HashSet<Uri>();
             _externalLinks = new HashSet<Uri>();
+            _images = new HashSet<Uri>();
+            _scripts = new HashSet<Uri>();
+            _styleSheets = new HashSet<Uri>();
 
             AnalyseHtmlPage(startUri);
 
@@ -71,28 +79,10 @@ namespace Crawler
                     // Read all links :
                     // ================
                     foreach (var node in document.DocumentNode.SelectNodes("//a[@href]"))
-                    {                        
-                        var linkUrl = node.Attributes["href"].Value;
+                    {
+                        var linkUrl = CleanUri(node.Attributes["href"].Value);
 
-                        // Filter API requests :
-                        // =====================
-                        if (linkUrl.Contains("?"))
-                        {
-                            continue;
-                        }
-
-                        // Filter anchors :
-                        // ================
-                        if (linkUrl.Contains("#"))
-                        {
-                            linkUrl = linkUrl.Split('#').First();
-                        }
-
-                        // Trim / at the end of url :
-                        // ==========================
-                        linkUrl = linkUrl.TrimEnd('/');
-
-                        if (linkUrl.Length > 0)
+                        if (linkUrl != null && linkUrl.Length > 0)
                         {
                             var uri = new Uri(linkUrl);
 
@@ -119,8 +109,65 @@ namespace Crawler
                             }
                         }
                     }
+
+                    // Read static assets :
+                    // ====================
+                    ReadStaticAssets(document, "//img[@src]", "src", _images, "IMAGE");
+                    ReadStaticAssets(document, "//script[@src]", "src", _scripts, "SCRIPT");
+                    ReadStaticAssets(document, "//link[@rel='stylesheet' and @href]", "href", _styleSheets, "STYLESHEET");
                 }
             }
+        }
+        private static void ReadStaticAssets(HtmlDocument document, string nodeQuery, string uriAttributeName, HashSet<Uri> targetCollection, string staticAssetLabel)
+        {
+            foreach (var node in document.DocumentNode.SelectNodes(nodeQuery))
+            {
+                var attributeStringUri = CleanUri(node.Attributes[uriAttributeName].Value);
+
+                if (attributeStringUri != null && attributeStringUri.Length > 0)
+                {
+                    var uri = new Uri(attributeStringUri);
+
+                    if (!targetCollection.Contains(uri))
+                    {
+                        targetCollection.Add(uri);
+                        _sb.AppendLine($"{staticAssetLabel} : {attributeStringUri}");
+                    }
+                }
+            }
+        }
+        private static string CleanUri(string input)
+        {
+            // Filter API requests :
+            // =====================
+            if (input.Contains("?"))
+            {
+                return null;
+            }
+
+            // Clean anchors :
+            // ===============
+            if (input.Contains("#"))
+            {
+                input = input.Split('#').First();
+            }
+
+            // If Uri is relative, add _host :
+            // ===============================
+            Uri relativeUri = null; 
+
+            bool isRelative = Uri.TryCreate(input, UriKind.Relative, out relativeUri);
+
+            if (isRelative)
+            {
+                input = $"{_scheme}://{_host}/{input.TrimStart('/')}";
+            }
+
+            // Trim / at the end of url :
+            // ==========================
+            input = input.TrimEnd('/');
+
+            return input;
         }
     }
 }
