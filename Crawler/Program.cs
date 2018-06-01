@@ -11,7 +11,11 @@ namespace Crawler
     class Program
     {
         private static StringBuilder _sb;
-        private static HashSet<Uri> _links;
+        private static string _host;
+        private static HashSet<Uri> _visited;
+        private static HashSet<Uri> _errors;
+        private static HashSet<Uri> _internalLinks;
+        private static HashSet<Uri> _externalLinks;
 
         static void Main(string[] args)
         {
@@ -21,7 +25,11 @@ namespace Crawler
             var startUri = new Uri(startString);
 
             _sb = new StringBuilder();
-            _links = new HashSet<Uri>();
+            _host = startUri.Host;
+            _visited = new HashSet<Uri>();
+            _errors = new HashSet<Uri>();
+            _internalLinks = new HashSet<Uri>();
+            _externalLinks = new HashSet<Uri>();
 
             AnalyseHtmlPage(startUri);
 
@@ -32,20 +40,38 @@ namespace Crawler
         }
         private static void AnalyseHtmlPage(Uri page)
         {
-            using (var web = new WebClient())
+            if (!_visited.Contains(page))
             {
-                var content = web.DownloadString(page);
+                _visited.Add(page);
 
-                var document = new HtmlDocument();
+                Console.WriteLine($"Visiting {page.AbsoluteUri}...");
 
-                document.LoadHtml(content);
-
-                // Read all links :
-                // ================
-                foreach (var node in document.DocumentNode.SelectNodes("//a[@href]"))
+                using (var web = new WebClient())
                 {
-                    if (node.Attributes.Any(e => e.Name.ToLower() == "href"))
+                    string content = null;
+
+                    try
                     {
+                        content = web.DownloadString(page);
+                    }
+                    catch(WebException ex)
+                    {
+                        // Http exception => Discard uri :
+                        if (!_errors.Contains(page))
+                        {
+                            _errors.Add(page);
+                        }
+                        return;
+                    }
+
+                    var document = new HtmlDocument();
+
+                    document.LoadHtml(content);
+
+                    // Read all links :
+                    // ================
+                    foreach (var node in document.DocumentNode.SelectNodes("//a[@href]"))
+                    {                        
                         var linkUrl = node.Attributes["href"].Value;
 
                         // Filter API requests :
@@ -70,10 +96,26 @@ namespace Crawler
                         {
                             var uri = new Uri(linkUrl);
 
-                             if (!_links.Contains(uri))
+                            if (uri.Host == _host)
                             {
-                                _links.Add(uri);
-                                _sb.AppendLine($"LINK : {linkUrl}");
+                                // Internal Link => Analyse :
+                                // ==========================
+                                if (!_internalLinks.Contains(uri))
+                                {
+                                    _internalLinks.Add(uri);
+                                    _sb.AppendLine($"INTERNAL LINK : {linkUrl}");
+                                    AnalyseHtmlPage(uri);
+                                }
+                            }
+                            else
+                            {
+                                // External Link => Don't Analyse :
+                                // ================================
+                                if (!_externalLinks.Contains(uri))
+                                {
+                                    _externalLinks.Add(uri);
+                                    _sb.AppendLine($"EXTERNAL LINK : {linkUrl}");
+                                }
                             }
                         }
                     }
