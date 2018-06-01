@@ -84,7 +84,7 @@ namespace Crawler
 
             var result = Console.ReadLine();
 
-            if (result == "Y")
+            if (result.ToUpper() == "Y")
             {
                 Process.Start(filename);
             }
@@ -192,6 +192,13 @@ namespace Crawler
         }
         private static string CleanUri(string input)
         {
+            // Filter Email Links :
+            // ====================
+            if (input.Contains("mailto:"))
+            {
+                return null;
+            }
+
             // Filter API requests :
             // =====================
             if (input.Contains("?"))
